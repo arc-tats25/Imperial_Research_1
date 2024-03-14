@@ -781,8 +781,3 @@ ggplot(model_ccf_cut,
 
 #estimate is the change in knowledge score when a `no` answer changes to a `yes`
 ```
-CanRisk genetic risk, use for thesis introduction or discussion
-future work - improve questions, add age, education level, children
-are gps doing enough? genetic counselars
-
-

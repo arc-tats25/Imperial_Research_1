@@ -33,23 +33,6 @@ stat_stars <- data.frame(sig = c(0.0001, 0.001, 0.01, 0.05, 1),
                          star = c("****", "***", "**", "*", ""))
 ```
 
-{r addresses standardize}
-library(tidygeocoder)
-
-census_v1 <- geo(df$`Please confirm your GP practice name and postcode`, method = "osm", full_results = TRUE)
-
-
-library(stringdist)
-
-match_census <- na.omit(census_v1) %>%
-  distinct(.keep_all = TRUE)
-
-no_match_census <- apply(is.na(census_v1), 1, any)
-no_match_census <- census_v1[no_match_census, ]
-
-matching_v1 <- amatch(no_match_census$address, match_census, nomatch = NA_integer_, matchNA = FALSE, method = "lv", maxDist = 1)
-
-
 ```{r knowledge score apply}
 dd_knowledge <- dd[grep("knowledge", dd$type), ]
 dd_knowledge <- dd_knowledge[ ,c(2, 6:7)]

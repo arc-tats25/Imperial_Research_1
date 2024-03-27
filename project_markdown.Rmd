@@ -79,8 +79,6 @@ knowledge_stats <- group_by(dfv2, gp_or_patient) %>%
     IQR_high = quantile(correct_answers, probs = 0.75, na.rm = TRUE)
     )
 
-knowledge_stats_dr <- knowledge_stats[1, ]
-knowledge_stats_pt <- knowledge_stats[2, ]
 ```
 
 ```{r boxplot base}
@@ -201,9 +199,9 @@ model_ok_binary$group <- c("Increase the availability of genetic testing", #1
                            "Genetic tests will be common in the future", #17
                            "In 5 to 10 years time we will have genetic passports", #18
                            "In 5 to 10 years time genetic information will be stored in computers", #19
-                           "In 5 to 10 years time all children will recieve genetic testing for risk", #20
-                           "Genetic tests will impact emplyoment/insurance", #21
-                           "Genetic tests will impact emplyoment/insurance") #22
+                           "In 5 to 10 years time all children will receive genetic testing for risk", #20
+                           "Genetic tests will impact employment/insurance", #21
+                           "Genetic tests will impact employment/insurance") #22
 
 dd_opinion_readable <- dd_opinion[1:22, 1] %>%
   mutate(
@@ -224,37 +222,47 @@ model_ok_binary$stars <-
       star # If no stars are assigned, return an empty string
   })
 
+model_ok_binary1 <- model_ok_binary %>%
+  arrange(OddsRatio)
+model_ok_binary1$Questions <- sprintf("q%02d", 1:nrow(model_ok_binary1))
+
 ```
+
 ```{r glm ci plot}
-ggplot(model_ok_binary, 
+ggplot(model_ok_binary1, 
        aes(y = reorder(group, OddsRatio), 
            x = OddsRatio, 
            xmin = LowerCI, 
            xmax = UpperCI)) +
   
-  geom_linerange(aes(color = group),
-                 position = position_dodge2(width = 0.5)) +
+  geom_linerange(aes(color = Questions),
+                 position = position_dodge2(width = 0.8)) +
   
-  geom_point(aes(color = group),
-             position = position_dodge2(width = 0.5),
+  geom_point(aes(color = Questions),
+             position = position_dodge2(width = 0.8),
              size = 2)+
   
   geom_vline(xintercept = 1,
              linetype = 3) +
 
-  labs(y = "Group of questions") +
+  labs(y = "Group of questions",
+       legend = "Question") +
   
   geom_text(aes(label = stars, 
                 y = reorder(group, OddsRatio)),
-            position = position_dodge2(width = 0.5),
-            vjust = 0, 
+            position = position_dodge2(width = 0.8),
+            vjust = 0.2, 
             color = "black", 
             size = 3.8) + 
   
-  theme(legend.position = "none",
+  theme(legend.position = "right",
+        legend.box = "horizontal",
+        legend.text = element_text(size = 8),
         plot.title = element_text(hjust = 1.5)) +
-
-  scale_y_discrete(labels = label_wrap_gen(width = 50))
+  
+  theme_minimal(base_size = 10) +
+  
+  scale_y_discrete(labels = label_wrap_gen(width = 40))
 
 ```
 
@@ -262,8 +270,62 @@ ggplot(model_ok_binary,
 percent_count <- df[1:6500, 70:73]
 colnames(percent_count) <- c("Surgery", "Medication", "Lifestyle change", "Diet change")
 counts_per_column <- apply(percent_count, 2, table)
-
 counts_per_column <- as.data.frame(counts_per_column)
+
+chisq_dl_counts <- counts_per_column[, 3:4] #diet and lifestyle
+chi_square_results <- list()
+
+for (i in 1:6) {
+  row_data <- as.numeric(chisq_dl_counts[i, ])
+  
+  chi_square_results[[i]] <- chisq.test(row_data)
+}
+
+p_values <- sapply(chi_square_results, function(test) test$p.value)
+diet_lifestlye_bonferroni <- p.adjust(p_values, method = "bonferroni")
+print(diet_lifestlye_bonferroni) #no sig differences
+
+
+chisq_dl_counts <- counts_per_column[, 2:3] #lifestlye and medication
+chi_square_results <- list()
+
+for (i in 1:6) {
+  row_data <- as.numeric(chisq_dl_counts[i, ])
+  
+  chi_square_results[[i]] <- chisq.test(row_data)
+}
+
+p_values <- sapply(chi_square_results, function(test) test$p.value)
+lifestlye_medication_bonferroni <- p.adjust(p_values, method = "bonferroni")
+print(lifestlye_medication_bonferroni) #sig differences
+
+
+chisq_dl_counts <- counts_per_column[, c(1, 3)] #lifestlye and surgery
+chi_square_results <- list()
+
+for (i in 1:6) {
+  row_data <- as.numeric(chisq_dl_counts[i, ])
+  
+  chi_square_results[[i]] <- chisq.test(row_data)
+}
+
+p_values <- sapply(chi_square_results, function(test) test$p.value)
+lifestlye_surgery_bonferroni <- p.adjust(p_values, method = "bonferroni")
+print(lifestlye_surgery_bonferroni) #sig differences
+
+chisq_dl_counts <- counts_per_column[, 1:2] #surgery and medication
+chi_square_results <- list()
+
+for (i in 1:6) {
+  row_data <- as.numeric(chisq_dl_counts[i, ])
+  
+  chi_square_results[[i]] <- chisq.test(row_data)
+}
+
+p_values <- sapply(chi_square_results, function(test) test$p.value)
+lifestlye_surgery_bonferroni <- p.adjust(p_values, method = "bonferroni")
+print(lifestlye_surgery_bonferroni) #sig differences
+
 counts_per_column$Percentage <- rownames(counts_per_column)
 
 percent_stacked <- pivot_longer(counts_per_column, 
@@ -320,8 +382,6 @@ colnames(reaction_response) <- sprintf("q%02d", 1:ncol(reaction_response))
 
 reaction_response[] <- lapply(reaction_response, factor)
 
-dfreact <- cbind(reaction_response, correct_count)
-
 results.react <- list()
 
 for(i in 1:10) {
@@ -332,7 +392,7 @@ for(i in 1:10) {
   formula_obj <- as.formula(formula_str)
   
   results.react[[question_col]] <- glm(formula = formula_obj, 
-                                       data = dfreact,
+                                       data = reaction_response,
                                        family = "binomial",
                                        na.action = na.omit)
 }
@@ -358,7 +418,7 @@ model_rk$UpperCI <- exp(model_rk$estimate) +
   (1.96 * model_rk$std.error)
 
 model_rk$writtenQ <- c("I would be more likely to research treatment if I learned I was high risk",
-                       "Learnig I was high risk wouldn't help much, because treatment options are limited",
+                       "Learning I was high risk wouldn't help much, because treatment options are limited",
                        "It would be upsetting to learn I was high risk from a genetic test, so I am happier not knowing",
                        "If I learnt I had high risk, I would be concerned about my emotional reactions", 
                        "If I learnt I had high risk, I would be concerned about my partner's reaction", 
@@ -406,8 +466,11 @@ ggplot(model_rk,
             color = "black", 
             size = 3.8) + 
   
+  theme_minimal() +
+  
   theme(legend.position = "none",
         plot.title = element_text(hjust = 1.5)) +
+
 
   scale_y_discrete(labels = label_wrap_gen(width = 50)) 
 ```
@@ -558,6 +621,8 @@ plot1 <- ggplot(summary_all_glm, aes(y = reorder(cofounder, id),
   
   labs(y = "Cofounders",
        x = "Odds Ratio") +
+  
+  theme_minimal() +
  
   theme(legend.position = "none",
         plot.title = element_text(hjust = 1)) 
@@ -711,9 +776,9 @@ model_ccf$q_write <- c(
   "I have been refused a genetic test due to `ineligibility`",
   "I paid for a private healthcare genetic test because the NHS denied one to me",
   "I paid for a private healthcare genetic test because the NHS denied one to me",
-  "I paid for an over-the-counter genetic test because the NHS denied one to me",
-  "I paid for an over-the-counter genetic test because the NHS denied one to me",
-  "I have taken an over-the-counter genetic test without the involvement of a healthcare professional"
+  "I paid for an over the counter genetic test because the NHS denied one to me",
+  "I paid for an over the counter genetic test because the NHS denied one to me",
+  "I have taken an over the counter genetic test without the involvement of a healthcare professional"
 )
 model_ccf$Answer <- c("Unsure", "Yes",
                       "Unsure", "Yes",
@@ -747,10 +812,13 @@ model_ccf_cut$OddsRatio <- exp(model_ccf_cut$estimate)
 model_ccf_cut$LowerCI <- exp(model_ccf_cut$estimate) - (1.96 * model_ccf_cut$std.error)
 model_ccf_cut$UpperCI <- exp(model_ccf_cut$estimate) + (1.96 * model_ccf_cut$std.error)
 
-```
+model_ccf_cut$id <-  sprintf("1%02d", rev(1:nrow(model_ccf_cut)))
+model_ccf_cut$id <- as.numeric(model_ccf_cut$id)
+  
+```  
 ```{r}
 ggplot(model_ccf_cut, 
-       aes(y = q_write,
+       aes(y = reorder(q_write, id),
            x = OddsRatio, 
            xmin = LowerCI, 
            xmax = UpperCI)) +
@@ -766,7 +834,7 @@ ggplot(model_ccf_cut,
              linetype = 3) +
   
   geom_text(aes(label = stars, 
-                y = q_write),
+                y = reorder(q_write, id)),
             position = position_dodge2(width = 1),
             vjust = 0, 
             color = "black", 
@@ -774,9 +842,11 @@ ggplot(model_ccf_cut,
   
   labs(y = "Questions") +
   
+  theme_minimal() + 
+  
   theme(plot.title = element_text(hjust = 1)) +
 
-  scale_y_discrete(labels = label_wrap_gen(width = 50))
+  scale_y_discrete(labels = label_wrap_gen(width = 60))
 
 #estimate is the change in knowledge score when a `no` answer changes to a `yes`
 ```
